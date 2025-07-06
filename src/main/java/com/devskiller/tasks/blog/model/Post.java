@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
-
 import jakarta.persistence.OneToMany;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,8 +23,7 @@ public class Post {
 	private String content;
 
 	@OneToMany(fetch = FetchType.EAGER)
-
-	private List<Comment> comments= new ArrayList<>();
+	private List<Comment> comments = new ArrayList<>();
 
 	private LocalDateTime creationDate;
 

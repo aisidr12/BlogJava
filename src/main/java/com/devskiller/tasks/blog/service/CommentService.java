@@ -3,19 +3,16 @@ package com.devskiller.tasks.blog.service;
 import com.devskiller.tasks.blog.exceptions.PostNotFoundException;
 import com.devskiller.tasks.blog.model.Comment;
 import com.devskiller.tasks.blog.model.Post;
-import com.devskiller.tasks.blog.repository.CommentRepository;
-import com.devskiller.tasks.blog.repository.PostRepository;
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
-import java.util.Optional;
-import org.springframework.stereotype.Service;
-
 import com.devskiller.tasks.blog.model.dto.CommentDto;
 import com.devskiller.tasks.blog.model.dto.NewCommentDto;
+import com.devskiller.tasks.blog.repository.CommentRepository;
+import com.devskiller.tasks.blog.repository.PostRepository;
+import jakarta.transaction.Transactional;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
 
 @Service
 public class CommentService {
@@ -34,15 +31,12 @@ public class CommentService {
 	 * @param postId id of the post
 	 * @return list of comments sorted by creation date descending - most recent first
 	 */
+	@Transactional
 	public List<CommentDto> getCommentsForPost(Long postId) {
-		return postRepository.findById(postId)
-			.map(Post::getComments)
-			.map(comments -> comments
-				.stream()
-				.sorted(Comparator.comparing(Comment::getCreationDate).reversed())
-				.map(this::commentToDto)
-				.toList())
-			.orElse(List.of());
+		return commentRepository.findByPostId(postId).stream()
+			.map(c -> new CommentDto(c.getIdComment(), c.getContent(), c.getAuthor(),
+				c.getCreationDate()))
+			.collect(Collectors.toList());
 	}
 
 	private CommentDto commentToDto(Comment comment) {
@@ -61,17 +55,19 @@ public class CommentService {
 	 */
 	public Long addComment(Long postId, NewCommentDto newCommentDto) {
 		Optional<Post> post = postRepository.findById(postId);
-		if(post.isEmpty()){
+		if (post.isEmpty()) {
 			throw new PostNotFoundException("Post Does not Exist");
 		}
-		Post currentPost = post.get();
-		//FIXME buscar el error aqui porque no se añade
-		currentPost.getComments().add(commentRepository.save(addNewComment(newCommentDto)));
-		postRepository.save(currentPost);
-		return currentPost.getId();
+		Post postOriginal = post.get();
+		Comment comment = addNewComment(newCommentDto);
+		postOriginal.getComments().add(comment);
+		comment.setPost(postOriginal);
+		Comment savedComment = commentRepository.save(comment);
+
+		return savedComment.getIdComment();
 	}
 
-	private Comment addNewComment(NewCommentDto newCommentDto){
+	private Comment addNewComment(NewCommentDto newCommentDto) {
 		Comment comment = new Comment();
 		comment.setAuthor(newCommentDto.author());
 		comment.setContent(newCommentDto.content());
